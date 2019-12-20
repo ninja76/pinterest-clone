@@ -6,6 +6,8 @@ import Dropzone from 'react-dropzone'
 import TextField from '@material-ui/core/TextField';
 import AppBar from '@material-ui/core/AppBar';
 import InputAdornment from '@material-ui/core/InputAdornment';
+import InputLabel from '@material-ui/core/InputLabel';
+import FormControl from '@material-ui/core/FormControl';
 import Toolbar from '@material-ui/core/Toolbar';
 import Button from '@material-ui/core/Button';
 import Chip from '@material-ui/core/Chip';
@@ -20,9 +22,11 @@ import DialogTitle from '@material-ui/core/DialogTitle';
 import Grid from '@material-ui/core/Grid';
 import GridList from '@material-ui/core/GridList';
 import GridListTile from '@material-ui/core/GridListTile';
+import Slide from '@material-ui/core/Slide';
+import Select from '@material-ui/core/Select';
+import NativeSelect from '@material-ui/core/NativeSelect';
 import DeleteIcon from '@material-ui/icons/Delete';
 import CloseIcon from '@material-ui/icons/Close';
-import Slide from '@material-ui/core/Slide';
 import CloudUploadIcon from '@material-ui/icons/CloudUpload';
 import GetAppIcon from '@material-ui/icons/GetApp';
 import cuid from "cuid";
@@ -34,7 +38,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
 });
 
-const getPresignedPostData = (pinTitle, pinDescription, pinCredit, pinTags, image) => {
+const getPresignedPostData = (pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, image) => {
   firebase.auth().currentUser.getIdToken(/* forceRefresh */ true).then(function(idToken) {
     fetch('http://chlover-833630845.us-east-1.elb.amazonaws.com/upload_url', {
       method: 'post',
@@ -48,7 +52,7 @@ const getPresignedPostData = (pinTitle, pinDescription, pinCredit, pinTags, imag
       .then(response => response.text())
       .then(json => {
         const presigndata = json;
-        uploadFileToS3(pinTitle, pinDescription, pinCredit, pinTags, image, presigndata);
+        uploadFileToS3(pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, image, presigndata);
       })
       .catch(error => {
         console.log(error);
@@ -56,7 +60,7 @@ const getPresignedPostData = (pinTitle, pinDescription, pinCredit, pinTags, imag
   });  
 };
 
-const uploadFileToS3 = (pinTitle, pinDescription, pinCredit, pinTags, file, presignedPostData) => {
+const uploadFileToS3 = (pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, file, presignedPostData) => {
   const buffer = Buffer.from(file.src.replace(/^data:image\/\w+;base64,/, ""),'base64');
   const result = axios.put(JSON.parse(presignedPostData).url, buffer, {
     headers: {
@@ -64,11 +68,11 @@ const uploadFileToS3 = (pinTitle, pinDescription, pinCredit, pinTags, file, pres
       'Content-Encoding': 'base64'
     },
   }).then(function (response) {
-     submitPin(pinTitle, pinDescription, pinCredit, pinTags, file);
+     submitPin(pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, file);
   });
 };
 
-const submitPin = (pinTitle, pinDescription, pinCredit, pinTags, image) => {
+const submitPin = (pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, image) => {
   firebase.auth().currentUser.getIdToken(/* forceRefresh */ true).then(function(idToken) {
     fetch('http://chlover-833630845.us-east-1.elb.amazonaws.com/pins', {
       method: 'post',
@@ -82,8 +86,9 @@ const submitPin = (pinTitle, pinDescription, pinCredit, pinTags, image) => {
                             imageId: image.id, 
                             credit: pinCredit,
                             tags: pinTags,
-                            url: '',
-                            userId: 1})
+                            boardId: pinBoard,
+                            url: pinDestinationLink
+                          })
       })
       .then(response => {
         const statusCode = response.status;
@@ -107,6 +112,7 @@ export default function CreatePinDialog(props) {
   const [pinDestinationLink, setPinDestinationLink] = useState("");
   const [pinCredit, setPinCredit] = useState("");
   const [pinTags, setPinTags] = useState([]);
+  const [pinBoard, setPinBoard] = useState();
 
   const [tagArray, dispatch] = useReducer((tagArray, { type, value }) => {
     switch (type) {
@@ -122,7 +128,9 @@ export default function CreatePinDialog(props) {
   const [images, setImages] = useState([]);
 
   const handleCreate = () => {
-    getPresignedPostData(pinTitle, pinDescription, pinCredit, pinTags, images[0]);
+    getPresignedPostData(pinTitle, pinDescription, pinCredit, pinTags, pinBoard, pinDestinationLink, images[0]);
+    setImages([]);
+    setPinTitle();
     props.handleClose();
   };
 
@@ -236,6 +244,16 @@ export default function CreatePinDialog(props) {
               </Grid>
             </Grid>
             <Grid item xs={12} md={5}>
+              <FormControl className={classes.formControl}>
+                <InputLabel>Board</InputLabel>
+                <Select
+                  native
+                  value={pinBoard}
+                  onChange={(e) => setPinBoard(e.target.value)}
+                >
+                </Select>
+                <Button size='small' variant='contained' color='secondary'>New Board</Button>
+              </FormControl>
               <div>
                 <div>
                 <TextField

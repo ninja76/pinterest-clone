@@ -56,8 +56,9 @@ function App(props) {
   } = props;
 
   const classes = useStyles();
-  const [pins, setPins] = useState();
+  const [pins, setPins] = useState([]);
   const [createPinDialogOpen, setCreatePinDialogOpen] = useState(false);
+  const [isAuth, setIsAuth] = useState(false)
 
   const handleClickOpen = () => {
     setCreatePinDialogOpen(true);
@@ -67,20 +68,52 @@ function App(props) {
     setCreatePinDialogOpen(false);
   };
 
+  const fetchPins = () => {
+    console.log("fetching pins");
+    fetch('http://chlover-833630845.us-east-1.elb.amazonaws.com/pins', {
+      method: 'get',
+      headers: {
+        'Auth': JSON.parse(localStorage.getItem('authToken'))
+      }
+    })
+    .then(res => res.json())
+    .then((data) => setPins(data))
+    .catch(error => {
+      console.log(error);
+    })
+  }
+
+  const customSignOut = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    console.log("Signing out")
+    firebase.auth().signOut().then(function() {
+      fetchPins();
+    });
+  }
+
+  const customSignIn = () => {
+    signInWithGoogle().then(function() {
+      firebase.auth().currentUser.getIdToken(true).then(function(idToken) {
+        localStorage.setItem('authToken', JSON.stringify(idToken));
+        localStorage.setItem('authUser', JSON.stringify(user));
+        fetchPins();
+      });
+    });
+  }
+
   useEffect(() => {
-   axios
-     .get(
-       "http://chlover-833630845.us-east-1.elb.amazonaws.com/pins"
-     )
-     .then(({ data }) => {
-      setPins(data);
-     });
+      fetchPins()
   }, []);
 
   return pins ? ( 
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <SearchAppBar user={user} signOut={signOut} signInWithGoogle={signInWithGoogle} />
+      <SearchAppBar 
+        user={user} 
+        signOut={customSignOut} 
+        signIn={customSignIn} 
+      />
       <Box justifyContent="center" m={1} p={1} style={{paddingTop: 75, maxWidth: 1280, margin: '0 auto'}}>
         <Masonry
           style={{margin: '0 auto'}}
@@ -88,8 +121,11 @@ function App(props) {
           updateOnEachImageLoad={false} // default false and works only if disableImagesLoaded is false
           options={masonryOptions}
         >
-          {pins.map(tile => (
-            <ImageTile title={tile.title} id={tile.imageId} key={tile.imageId} image={'https://roxlr-thumbs.s3.amazonaws.com/pins/resized/small/' + tile.imageId.split('/')[1]} name={tile.title} />
+          {pins.map(pin => (
+            <ImageTile  
+              key={pin.imageId}
+              pin={pin}
+              image={'https://roxlr-thumbs.s3.amazonaws.com/pins/resized/small/' + pin.imageId.split('/')[1]} />
           ))}
         </Masonry>
       </Box> 
@@ -109,7 +145,7 @@ function App(props) {
                  <AddIcon />
                </Fab>
             }
-      <CreatePinDialog open={createPinDialogOpen} handleClose={handleClose} token={firebase.auth().currentUser} />
+      <CreatePinDialog open={createPinDialogOpen} handleClose={handleClose} />
     </ThemeProvider>
     ) : (
       <ThemeProvider theme={theme}>

@@ -170,7 +170,7 @@ export default function SearchAppBar(props) {
                 ? <IconButton onClick={props.signOut}>
                     <AccountCircleIcon fontSize='large'/>
                   </IconButton>
-                : <Button onClick={props.signInWithGoogle}>Login</Button>
+                : <Button onClick={props.signIn}>Login</Button>
             }
           </div>
           <div className={classes.sectionMobile}>

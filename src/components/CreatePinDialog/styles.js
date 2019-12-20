@@ -32,6 +32,9 @@ const useStyles = makeStyles(theme => ({
   },
   resize:{
     fontSize:50
+  },
+  formControl: {
+    width: 200
   }
 }));
 
